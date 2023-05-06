@@ -37,7 +37,7 @@
 
 #include "CvSavegame.h"
 #include "BetterBTSAI.h"
-
+#include "AITypes.h"
 
 // Public Functions...
 
@@ -21187,7 +21187,7 @@ void CvPlayer::checkForNativeMercs()
 						if (iMercRand < GC.getDefineINT("AI_CHANCE_FOR_BUYING_MERCENARIES"))
 						{
 							int iMercPriceAI = totalmercprice * GC.getDefineINT("AI_PRICE_PERCENT_FOR_BUYING_MERCENARIES") / 100;
-							if (getGold() > iMercPriceAI)
+							if (AI().AI_getAvailableGold(PurchaseType::MILITARY, iMercPriceAI) > iMercPriceAI)
 							{
 								m_iTimerNativeMerc = GC.getTIMER_NATIVE_MERC() * gamespeedMod / 100; // WTP, ray, small correction in balancing
 								buyNativeMercs(potentialMercPlayer.getID(), iMercPriceAI, false);
@@ -21285,7 +21285,7 @@ void CvPlayer::checkForNativeSlaves()
 					// TAC - AI Military Buildup - koma13
 					if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
 					{
-						if (getGold() > totalslaveprice * 2)
+						if (AI().AI_getAvailableGold(PurchaseType::SLAVE, totalslaveprice * 2) > totalslaveprice * 2)
 						{
 							//get City
 							CvCity* pLoopCity = NULL;
@@ -21407,25 +21407,21 @@ void CvPlayer::checkForAfricanSlaves()
 	//simple logic for AI
 	if (!isHuman())
 	{
-		if (getGold() > totalslavesprice * 2)
+		if (AI().AI_isAvailableGold(PurchaseType::SLAVE, totalslavesprice, numSlavesOffered))		
 		{
-			// TAC - AI Military Buildup - koma13
-			if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
+			//create the prisoners
+			UnitTypes SlaveType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_AFRICAN_SLAVE"));
+			CvUnit* SlaveUnit;
+			for (int i=0;i<numSlavesOffered;i++)
 			{
-				//create the prisoners
-				UnitTypes SlaveType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_AFRICAN_SLAVE"));
-				CvUnit* SlaveUnit;
-				for (int i=0;i<numSlavesOffered;i++)
-				{
-					SlaveUnit = initUnit(SlaveType, GC.getUnitInfo(SlaveType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
-				}
-				//pay the king
-				OOS_LOG("CvPlayer::checkForAfricanSlaves AI", totalslavesprice);
-				King.changeGold(totalslavesprice);
-				King.AI_changeAttitudeExtra(getID(), 1);
-				changeGold(-totalslavesprice);
-				m_iTimerAfricanSlaves = GC.getTIMER_AFRICAN_SLAVE()*gamespeedMod / 200; // African Slaves offered more frequently to AI
+				SlaveUnit = initUnit(SlaveType, GC.getUnitInfo(SlaveType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
 			}
+			//pay the king
+			OOS_LOG("CvPlayer::checkForAfricanSlaves AI", totalslavesprice);
+			King.changeGold(totalslavesprice);
+			King.AI_changeAttitudeExtra(getID(), 1);
+			changeGold(-totalslavesprice);
+			m_iTimerAfricanSlaves = GC.getTIMER_AFRICAN_SLAVE()*gamespeedMod / 200; // African Slaves offered more frequently to AI
 		}
 	}
 
@@ -21515,25 +21511,21 @@ void CvPlayer::checkForPrisonsCrowded()
 	//simple logic for AI
 	if (!isHuman())
 	{
-		if (getGold() > totalprisonersprice * 2)
+		if (AI().AI_isAvailableGold(PurchaseType::CRIMINAL, totalprisonersprice, numPrisonersOffered))
 		{
-			// TAC - AI Military Buildup - koma13
-			if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
+			//create the prisoners
+			UnitTypes PrisonerType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_PRISONER"));
+			CvUnit* PrisonerUnit;
+			for (int i=0;i<numPrisonersOffered;i++)
 			{
-				//create the prisoners
-				UnitTypes PrisonerType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_PRISONER"));
-				CvUnit* PrisonerUnit;
-				for (int i=0;i<numPrisonersOffered;i++)
-				{
-					PrisonerUnit = initUnit(PrisonerType, GC.getUnitInfo(PrisonerType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
-				}
-				//pay the king
-				OOS_LOG("CvPlayer::checkForPrisonsCrowded AI", totalprisonersprice);
-				King.changeGold(totalprisonersprice);
-				King.AI_changeAttitudeExtra(getID(), 1);
-				changeGold(-totalprisonersprice);
-				m_iTimerPrisonsCrowded = GC.getTIMER_PRISONS_CROWDED()*gamespeedMod/100;
+				PrisonerUnit = initUnit(PrisonerType, GC.getUnitInfo(PrisonerType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
 			}
+			//pay the king
+			OOS_LOG("CvPlayer::checkForPrisonsCrowded AI", totalprisonersprice);
+			King.changeGold(totalprisonersprice);
+			King.AI_changeAttitudeExtra(getID(), 1);
+			changeGold(-totalprisonersprice);
+			m_iTimerPrisonsCrowded = GC.getTIMER_PRISONS_CROWDED()*gamespeedMod/100;
 		}
 	}
 
@@ -21621,22 +21613,18 @@ void CvPlayer::checkForRevolutionaryNoble()
 	//simple logic for AI
 	if (!isHuman())
 	{
-		if (getGold() > pricetopay * 2)
+		if (AI().AI_isAvailableGold(PurchaseType::BELL_PRODUCER, pricetopay, 1))
 		{
-			// TAC - AI Military Buildup - koma13
-			if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
-			{
-				//create the noble
-				UnitTypes NobleType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_NOBLE"));
-				CvUnit* NobleUnit;
-				NobleUnit = initUnit(NobleType, GC.getUnitInfo(NobleType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
-				//pay the king
-				OOS_LOG("CvPlayer::checkForRevolutionNoble AI", pricetopay);
-				GET_PLAYER(getParent()).changeGold(pricetopay);
-				GET_PLAYER(getParent()).AI_changeAttitudeExtra(getID(), 5);
-				changeGold(-pricetopay);
-				m_iTimerRevolutionaryNoble = GC.getTIMER_REVOLUTIONARY_NOBLE()*gamespeedMod/100;
-			}
+			//create the noble
+			UnitTypes NobleType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_NOBLE"));
+			CvUnit* NobleUnit;
+			NobleUnit = initUnit(NobleType, GC.getUnitInfo(NobleType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
+			//pay the king
+			OOS_LOG("CvPlayer::checkForRevolutionNoble AI", pricetopay);
+			GET_PLAYER(getParent()).changeGold(pricetopay);
+			GET_PLAYER(getParent()).AI_changeAttitudeExtra(getID(), 5);
+			changeGold(-pricetopay);
+			m_iTimerRevolutionaryNoble = GC.getTIMER_REVOLUTIONARY_NOBLE()*gamespeedMod/100;
 		}
 	}
 
@@ -21739,21 +21727,17 @@ void CvPlayer::checkForBishop()
 	//simple logic for AI
 	if (!isHuman())
 	{
-		if (getGold() > pricetopay * 2)
+		if (AI().AI_isAvailableGold(PurchaseType::CROSS_PRODUCER, pricetopay, 1))
 		{
-			// TAC - AI Military Buildup - koma13
-			if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
-			{
-				//create the bishop
-				UnitTypes BishopType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_BISHOP"));
-				CvUnit* BishopUnit;
-				BishopUnit = initUnit(BishopType, GC.getUnitInfo(BishopType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
-				//pay the king
-				OOS_LOG("CvPlayer::checkForBishop AI", pricetopay);
-				Church.changeGold(pricetopay);
-				changeGold(-pricetopay);
-				m_iTimerBishop = GC.getTIMER_BISHOP()*gamespeedMod/100;
-			}
+			//create the bishop
+			UnitTypes BishopType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_BISHOP"));
+			CvUnit* BishopUnit;
+			BishopUnit = initUnit(BishopType, GC.getUnitInfo(BishopType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
+			//pay the king
+			OOS_LOG("CvPlayer::checkForBishop AI", pricetopay);
+			Church.changeGold(pricetopay);
+			changeGold(-pricetopay);
+			m_iTimerBishop = GC.getTIMER_BISHOP()*gamespeedMod/100;
 		}
 	}
 
@@ -22049,7 +22033,7 @@ void CvPlayer::checkForStealingImmigrant()
 		m_iTimerStealingImmigrant = GC.getTIMER_STEALING_IMMIGRANT() * gamespeedMod/100;
 
 		// simply buy immigrant for cheaper price if AI has enough gold
-		if (getGold() > priceStealingImmigrant * 3)
+		if (AI().AI_isAvailableGold(PurchaseType::IMMIGRANT, priceStealingImmigrant, 1))
 		{
 			int randomUnitSelectOnDock = GC.getGameINLINE().getSorenRandNum(CivEffect().getNumUnitsOnDock(), "pick immigrant");
 			UnitTypes eBestUnit = getDocksNextUnit(randomUnitSelectOnDock);
@@ -22126,10 +22110,6 @@ void CvPlayer::checkForStealingImmigrant()
 // R&R, ray, Smuggling - START
 void CvPlayer::checkForSmugglers()
 {
-	// Erik: AI cannot use smuggling ships / Port Royal
-	if (!isHuman())
-		return;
-
 	// not in Revolution
 	if(isInRevolution())
 	{
@@ -22195,7 +22175,7 @@ void CvPlayer::checkForSmugglers()
 	if (!isHuman())
 	{
 		// TAC - AI Military Buildup - koma13
-		if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
+		if (AI().AI_isAvailableGold(PurchaseType::SMUGGLING, pricetopay, 1))
 		{
 			//create the smuggling ship
 			UnitTypes SmugglingShipType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_SMUGGLING_SHIP"));
@@ -22278,18 +22258,15 @@ void CvPlayer::checkForRangers()
 	if (!isHuman())
 	{
 		// TAC - AI Military Buildup - koma13
-		if (getGold() > pricetopay)
+		if (AI().AI_isAvailableGold(PurchaseType::MILITARY, pricetopay, 1))
 		{
-			if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
-			{
-				m_iTimerRanger = GC.getTIMER_RANGER() * gamespeedMod/100;
-				//create the ranger
-				UnitTypes RangerType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_RANGER"));
-				CvUnit* RangerUnit = initUnit(RangerType, GC.getUnitInfo(RangerType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
-				//pay
-				OOS_LOG("CvPlayer::checkForRangers AI", pricetopay);
-				changeGold(-pricetopay);
-			}
+			m_iTimerRanger = GC.getTIMER_RANGER() * gamespeedMod/100;
+			//create the ranger
+			UnitTypes RangerType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_RANGER"));
+			CvUnit* RangerUnit = initUnit(RangerType, GC.getUnitInfo(RangerType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
+			//pay
+			OOS_LOG("CvPlayer::checkForRangers AI", pricetopay);
+			changeGold(-pricetopay);
 		}
 	}
 
@@ -22386,33 +22363,29 @@ void CvPlayer::checkForConquistadors()
 	// simple logic for AI
 	if (!isHuman())
 	{
-		// TAC - AI Military Buildup - koma13
-		if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
+		int iMercRand = GC.getGameINLINE().getSorenRandNum(100, "AI should buy Mercenaries?");
+		if (iMercRand < GC.getDefineINT("AI_CHANCE_FOR_BUYING_MERCENARIES"))
 		{
-			int iMercRand = GC.getGameINLINE().getSorenRandNum(100, "AI should buy Mercenaries?");
-			if (iMercRand < GC.getDefineINT("AI_CHANCE_FOR_BUYING_MERCENARIES"))
+			int iMercPriceAI = pricetopay * GC.getDefineINT("AI_PRICE_PERCENT_FOR_BUYING_MERCENARIES") / 100;
+			if (AI().AI_isAvailableGold(PurchaseType::MILITARY, iMercPriceAI, 1))
 			{
-				int iMercPriceAI = pricetopay * GC.getDefineINT("AI_PRICE_PERCENT_FOR_BUYING_MERCENARIES") / 100;
-				if (getGold() > iMercPriceAI)
+				m_iTimerConquistador = GC.getTIMER_CONQUISTADOR() * gamespeedMod /100 ;
+				//create the conquistador
+				UnitTypes ConquistadorType;
+				int conquistUnitRand = GC.getGameINLINE().getSorenRandNum(3, "Conquistadors Available");
+				if (conquistUnitRand == 1)
 				{
-					m_iTimerConquistador = GC.getTIMER_CONQUISTADOR() * gamespeedMod /100 ;
-					//create the conquistador
-					UnitTypes ConquistadorType;
-					int conquistUnitRand = GC.getGameINLINE().getSorenRandNum(3, "Conquistadors Available");
-					if (conquistUnitRand == 1)
-					{
-						ConquistadorType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_MOUNTED_CONQUISTADOR"));
-					}
-					else
-					{
-						ConquistadorType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_CONQUISTADOR"));
-					}
-					CvUnit* ConquistadorUnit;
-					ConquistadorUnit = initUnit(ConquistadorType, GC.getUnitInfo(ConquistadorType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
-					//pay
-					OOS_LOG("CvPlayer::checkForConquistadors AI", pricetopay);
-					changeGold(-iMercPriceAI);
+					ConquistadorType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_MOUNTED_CONQUISTADOR"));
 				}
+				else
+				{
+					ConquistadorType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_CONQUISTADOR"));
+				}
+				CvUnit* ConquistadorUnit;
+				ConquistadorUnit = initUnit(ConquistadorType, GC.getUnitInfo(ConquistadorType).getDefaultProfession(), locationToAppear->coord(), NO_UNITAI);
+				//pay
+				OOS_LOG("CvPlayer::checkForConquistadors AI", pricetopay);
+				changeGold(-iMercPriceAI);
 			}
 		}
 	}
@@ -23144,7 +23117,7 @@ void CvPlayer::checkForContinentalGuard()
 	//simple logic for AI
 	if (!isHuman())
 	{
-		if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
+		if (AI().AI_isAvailableGold(PurchaseType::MILITARY, pricetopay, 1))
 		{
 			//create the Continental Guard
 			UnitTypes ContinentalGuardType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_CONTINENTAL_GUARD"));
@@ -23261,7 +23234,7 @@ void CvPlayer::checkForMortar()
 	//simple logic for AI
 	if (!isHuman())
 	{
-		if (!AI().AI_isStrategy(STRATEGY_MILITARY_BUILDUP))
+		if (AI().AI_isAvailableGold(PurchaseType::MILITARY, pricetopay, 1))
 		{
 			//create the Mortar
 			UnitTypes MortarType = (UnitTypes)GC.getCivilizationInfo(getCivilizationType()).getCivilizationUnits(GC.getDefineINT("UNITCLASS_MORTAR"));
